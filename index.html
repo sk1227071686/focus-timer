@@ -413,7 +413,7 @@
 /* =============================================
    常量 & 状态
 ============================================= */
-const API = "http://localhost:8080/api";
+const API = "/api";  // 使用相对路径，兼容任意访问地址
 
 let selectedBreakSec = 300;   // 用户选中的休息时长（秒）
 let localRemaining   = 0;     // 前端本地倒计时（减少轮询依赖）
@@ -423,6 +423,7 @@ let localFocusDur    = 45 * 60;
 let tickInterval     = null;  // 本地每秒 tick
 let phaseDoneReported = false; // 防止重复上报 phase_done
 let notifPermission  = "default";
+let tickEndTime      = null;  // 时间戳校正：本阶段结束的绝对时间（ms）
 
 /* =============================================
    预留音频接口（前端侧）
@@ -553,13 +554,16 @@ function updateButtons(phase, status) {
 }
 
 /* =============================================
-   本地 Tick（每秒自减，减少服务器压力）
+   本地 Tick（时间戳校正版，防止漂移和后台节流）
 ============================================= */
 function startTick() {
   if (tickInterval) return;
+  // 用绝对结束时间而非递减计数，后台节流恢复后立即正确
+  tickEndTime = Date.now() + localRemaining * 1000;
   tickInterval = setInterval(() => {
     if (localStatus !== "running") return;
-    localRemaining = Math.max(0, localRemaining - 1);
+    // 补强措施1：用时间戳差值计算剩余，不依赖回调频率
+    localRemaining = Math.max(0, Math.round((tickEndTime - Date.now()) / 1000));
     renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
 
     if (localRemaining === 0 && !phaseDoneReported) {
@@ -656,6 +660,9 @@ function applyServerState(state) {
   // break_duration 保持用户选择的值
 
   phaseDoneReported = false;  // 重置上报标志
+
+  // 服务端覆盖时重置时间戳基准，确保 tick 从新的剩余值重新计算
+  tickEndTime = Date.now() + localRemaining * 1000;
 
   renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
 
@@ -791,6 +798,13 @@ async function init() {
   await pollStatus();      // 首次同步
   fetchStats();
   setInterval(pollStatus, 2000);  // 2 秒轮询兜底（缩短感知延迟）
+
+  // 补强措施2：页面从后台恢复时立即从服务端校正，不等下次轮询
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      pollStatus();
+    }
+  });
 }
 
 init();
