@@ -5,7 +5,7 @@ Flask 轻量后端，提供计时状态 API + 本地数据持久化（JSON）
 启动命令：
     pip install -r requirements.txt
     python app.py
-访问地址：http://localhost:5000
+访问地址：http://localhost:8080
 """
 
 import json
@@ -190,11 +190,12 @@ def api_pause():
 def api_reset():
     """完全重置计时器（回到 idle 状态，不清除今日统计）"""
     with lock:
+        # 将计时器重置回空闲态，并初始化为下一轮专注起始值（45 分钟），
+        # 这样前端在 idle 状态下显示为 45:00，符合用户预期的“重置回初始倒计时”。
         timer_state["phase"] = "idle"
         timer_state["status"] = "idle"
-        timer_state["remaining"] = 0
         timer_state["start_time"] = None
-        timer_state["paused_remaining"] = 0
+        timer_state["paused_remaining"] = timer_state["focus_duration"]
 
     return jsonify({"ok": True, "state": _current_snapshot()})
 
@@ -285,6 +286,6 @@ def api_stats_reset():
 if __name__ == "__main__":
     print("=" * 50)
     print("  学校模式专注节律提醒工具")
-    print("  访问地址: http://localhost:5000")
+    print("  访问地址: http://localhost:8080")
     print("=" * 50)
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=8080, debug=False)

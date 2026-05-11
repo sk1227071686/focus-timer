@@ -24,7 +24,7 @@ python3 -m pip install -r requirements.txt
 python3 app.py
 
 # 3. 打开浏览器访问
-# http://localhost:5000
+# http://localhost:8080
 ```
 
 ## 项目结构
