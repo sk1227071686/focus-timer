@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学校模式专注计时器 45+X</title>
+  <style>
+    /* =============================================
+       全局 / 根变量
+       低饱和度、柔和深色系，长期护眼
+    ============================================= */
+    :root {
+      --bg:         #1a1d23;   /* 主背景：深蓝灰 */
+      --surface:    #23272f;   /* 卡片背景 */
+      --border:     #30343d;   /* 边框 */
+      --text-pri:   #d4d8e0;   /* 主文字 */
+      --text-sec:   #7e8494;   /* 次文字 */
+      --text-dim:   #4a4f5c;   /* 暗淡文字 */
+      --accent-f:   #7c9fd4;   /* 专注强调色：柔蓝 */
+      --accent-b:   #7dc49a;   /* 休息强调色：柔绿 */
+      --accent-idle:#5a5f6e;   /* idle 强调色：灰 */
+      --btn-bg:     #2d3240;   /* 按钮背景 */
+      --btn-hover:  #363c4d;   /* 按钮悬停 */
+      --btn-active: #3f4660;   /* 按钮激活 */
+      --danger:     #c47b7b;   /* 危险/重置色 */
+      --radius:     12px;
+      --transition: 0.25s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text-pri);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      line-height: 1.6;
+    }
+
+    /* =============================================
+       标题
+    ============================================= */
+    .app-title {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--text-sec);
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .app-title span {
+      color: var(--text-pri);
+      font-weight: 600;
+    }
+
+    /* =============================================
+       主卡片
+    ============================================= */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 48px;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+
+    /* =============================================
+       倒计时显示
+    ============================================= */
+    .timer-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .timer-ring {
+      position: relative;
+      width: 180px;
+      height: 180px;
+    }
+    .timer-ring svg {
+      transform: rotate(-90deg);
+    }
+    .ring-track {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 6;
+    }
+    .ring-progress {
+      fill: none;
+      stroke: var(--accent-idle);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 502;     /* 2π × 79.9 ≈ circumference for r=80 */
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.9s linear, stroke var(--transition);
+    }
+    .timer-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .timer-digits {
+      font-size: 46px;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: var(--text-pri);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =============================================
+       状态标签
+    ============================================= */
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--text-sec);
+      padding: 4px 14px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .phase-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent-idle);
+      transition: background var(--transition);
+    }
+
+    /* =============================================
+       休息时长选择
+    ============================================= */
+    .break-select-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      align-self: flex-start;
+    }
+    .break-btns {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .break-btn {
+      flex: 1;
+      padding: 9px 0;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--btn-bg);
+      color: var(--text-sec);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), color var(--transition);
+    }
+    .break-btn:hover:not(:disabled) { background: var(--btn-hover); color: var(--text-pri); }
+    .break-btn.active {
+      border-color: var(--accent-b);
+      color: var(--accent-b);
+      background: #1f2e28;
+    }
+    .break-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* =============================================
+       控制按钮
+    ============================================= */
+    .ctrl-btns {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .btn {
+      flex: 1;
+      padding: 11px 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--btn-bg);
+      color: var(--text-pri);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+    }
+    .btn:hover:not(:disabled) { background: var(--btn-hover); }
+    .btn:active:not(:disabled) { background: var(--btn-active); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn.primary {
+      background: #1e2d42;
+      border-color: var(--accent-f);
+      color: var(--accent-f);
+    }
+    .btn.primary:hover:not(:disabled) { background: #263853; }
+    .btn.danger {
+      background: #2e1f1f;
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .btn.danger:hover:not(:disabled) { background: #3a2626; }
+    .btn.skip {
+      background: #1f2d24;
+      border-color: var(--accent-b);
+      color: var(--accent-b);
+    }
+    .btn.skip:hover:not(:disabled) { background: #263a2e; }
+
+    /* =============================================
+       今日统计
+    ============================================= */
+    .stats-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      width: 100%;
+      max-width: 420px;
+      margin-top: 12px;
+    }
+    .stats-title {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .stat-item { display: flex; flex-direction: column; gap: 3px; }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 300;
+      color: var(--text-pri);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-label { font-size: 11px; color: var(--text-sec); }
+
+    /* =============================================
+       弹窗提醒遮罩
+    ============================================= */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.show { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 40px;
+      max-width: 340px;
+      width: 90%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: popIn 0.22s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.88); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    .modal-icon { font-size: 40px; }
+    .modal-title { font-size: 20px; font-weight: 600; color: var(--text-pri); }
+    .modal-sub   { font-size: 13px; color: var(--text-sec); line-height: 1.7; }
+    .modal-btn {
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--transition);
+    }
+    .modal-btn:hover { opacity: 0.85; }
+    .modal-btn.focus-color { background: var(--accent-f); color: #111; }
+    .modal-btn.break-color { background: var(--accent-b); color: #111; }
+
+    /* =============================================
+       连接状态提示
+    ============================================= */
+    .conn-bar {
+      position: fixed;
+      top: 12px;
+      right: 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .conn-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent-idle);
+      transition: background var(--transition);
+    }
+    .conn-dot.ok   { background: var(--accent-b); }
+    .conn-dot.err  { background: var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- 连接状态 -->
+<div class="conn-bar">
+  <div class="conn-dot" id="connDot"></div>
+  <span id="connLabel">连接中…</span>
+</div>
+
+<!-- 标题 -->
+<h1 class="app-title"><span>学校模式专注计时器</span> &nbsp;45 + X</h1>
+
+<!-- 主卡片 -->
+<div class="card">
+
+  <!-- 倒计时环 -->
+  <div class="timer-wrap">
+    <div class="timer-ring">
+      <svg viewBox="0 0 180 180" width="180" height="180">
+        <circle class="ring-track"    cx="90" cy="90" r="80" />
+        <circle class="ring-progress" cx="90" cy="90" r="80" id="ringProgress" />
+      </svg>
+      <div class="timer-text">
+        <div class="timer-digits" id="timerDigits">45:00</div>
+      </div>
+    </div>
+    <!-- 状态标签 -->
+    <div class="phase-badge" id="phaseBadge">
+      <span class="phase-dot" id="phaseDot"></span>
+      <span id="phaseText">待机中</span>
+    </div>
+  </div>
+
+  <!-- 休息时长选择 -->
+  <div style="width:100%;display:flex;flex-direction:column;gap:8px;">
+    <span class="break-select-label">休息时长（专注结束后生效）</span>
+    <div class="break-btns">
+      <button class="break-btn active" data-sec="300"  onclick="selectBreak(this, 300)">5 分钟</button>
+      <button class="break-btn"        data-sec="600"  onclick="selectBreak(this, 600)">10 分钟</button>
+      <button class="break-btn"        data-sec="900"  onclick="selectBreak(this, 900)">15 分钟</button>
+    </div>
+  </div>
+
+  <!-- 控制按钮 -->
+  <div class="ctrl-btns">
+    <button class="btn primary" id="btnStart"     onclick="doStart()">开始</button>
+    <button class="btn"         id="btnPause"     onclick="doPause()"  disabled>暂停</button>
+    <button class="btn danger"  id="btnReset"     onclick="doReset()">重置</button>
+    <button class="btn skip"    id="btnSkip"      onclick="doSkip()"   disabled>跳过</button>
+  </div>
+
+</div>
+
+<!-- 今日统计 -->
+<div class="stats-card">
+  <div class="stats-title">今日统计</div>
+  <div class="stats-grid">
+    <div class="stat-item">
+      <span class="stat-value" id="statFocus">0</span>
+      <span class="stat-label">专注次数</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="statBreak">0</span>
+      <span class="stat-label">休息次数</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="statTotal">0 h</span>
+      <span class="stat-label">专注时长</span>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗提醒遮罩 -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <div class="modal-icon" id="modalIcon">🎉</div>
+    <div class="modal-title" id="modalTitle">专注结束！</div>
+    <div class="modal-sub"   id="modalSub">已完成 45 分钟专注，请休息一下。</div>
+    <button class="modal-btn focus-color" id="modalBtn" onclick="closeModal()">好的</button>
+  </div>
+</div>
+
+<script>
+/* =============================================
+   常量 & 状态
+============================================= */
+const API = "http://localhost:5000/api";
+
+let selectedBreakSec = 300;   // 用户选中的休息时长（秒）
+let localRemaining   = 0;     // 前端本地倒计时（减少轮询依赖）
+let localPhase       = "idle";
+let localStatus      = "idle";
+let localFocusDur    = 45 * 60;
+let tickInterval     = null;  // 本地每秒 tick
+let phaseDoneReported = false; // 防止重复上报 phase_done
+let notifPermission  = "default";
+
+/* =============================================
+   预留音频接口（前端侧）
+   未来在此函数内调用 Audio API 即可
+============================================= */
+function playFocusEndSound() {
+  // TODO: 专注结束音效（当前静默）
+  // 示例：new Audio('/static/focus_end.mp3').play();
+}
+function playBreakEndSound() {
+  // TODO: 休息结束音效（当前静默）
+}
+
+/* =============================================
+   桌面通知
+============================================= */
+async function requestNotifPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    notifPermission = "granted"; return;
+  }
+  if (Notification.permission !== "denied") {
+    const p = await Notification.requestPermission();
+    notifPermission = p;
+  }
+}
+
+function sendNotif(title, body, icon) {
+  if (notifPermission !== "granted") return;
+  try {
+    new Notification(title, { body, icon: icon || "" });
+  } catch(e) { /* Edge 某些策略下可能失败，静默处理 */ }
+}
+
+/* =============================================
+   休息时长选择
+============================================= */
+function selectBreak(el, sec) {
+  // 休息阶段进行中不可改（此轮已确定）
+  if (localPhase === "break" && localStatus === "running") return;
+  selectedBreakSec = sec;
+  document.querySelectorAll(".break-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  updateTitle();
+}
+
+function updateTitle() {
+  const m = selectedBreakSec / 60;
+  document.querySelector(".app-title").innerHTML =
+    `<span>学校模式专注计时器</span> &nbsp;45 + ${m}`;
+}
+
+/* =============================================
+   倒计时显示
+============================================= */
+function fmt(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, "0");
+  const s = (sec % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function updateRing(remaining, total) {
+  const circ = 502;
+  const ratio = total > 0 ? remaining / total : 0;
+  const offset = circ * (1 - ratio);
+  const ring = document.getElementById("ringProgress");
+  ring.style.strokeDashoffset = offset;
+}
+
+function setAccent(phase) {
+  const ring = document.getElementById("ringProgress");
+  const dot  = document.getElementById("phaseDot");
+  const badge = document.getElementById("phaseBadge");
+
+  let color, label;
+  const isRunning = localStatus === "running";
+  const isPaused  = localStatus === "paused";
+
+  if (phase === "focus" && isRunning) {
+    color = "var(--accent-f)"; label = "专注中 🧠";
+  } else if (phase === "focus" && isPaused) {
+    color = "var(--accent-f)"; label = "已暂停 ⏸";
+  } else if (phase === "break" && isRunning) {
+    color = "var(--accent-b)"; label = "休息中 🌿";
+  } else if (phase === "break" && isPaused) {
+    color = "var(--accent-b)"; label = "休息暂停 ⏸";
+  } else {
+    color = "var(--accent-idle)"; label = "待机中 ☁";
+  }
+  ring.style.stroke = color;
+  dot.style.background = color;
+  document.getElementById("phaseText").textContent = label;
+}
+
+function renderState(remaining, phase, status, focusDur, breakDur) {
+  document.getElementById("timerDigits").textContent = fmt(remaining);
+  const total = phase === "focus" ? focusDur : breakDur;
+  updateRing(remaining, total);
+  setAccent(phase);
+  updateButtons(phase, status);
+}
+
+/* =============================================
+   按钮启用/禁用逻辑
+============================================= */
+function updateButtons(phase, status) {
+  const btnStart = document.getElementById("btnStart");
+  const btnPause = document.getElementById("btnPause");
+  const btnSkip  = document.getElementById("btnSkip");
+  const breakBtns = document.querySelectorAll(".break-btn");
+
+  const isRunning = status === "running";
+  const isPaused  = status === "paused";
+
+  // 开始按钮：idle 或 paused 时可点
+  btnStart.disabled = isRunning;
+  btnStart.textContent = isPaused ? "继续" : "开始";
+
+  // 暂停：仅 running 时可点
+  btnPause.disabled = !isRunning;
+
+  // 跳过：仅休息阶段可跳过
+  btnSkip.disabled = phase !== "break";
+
+  // 休息选择：仅休息阶段运行中禁止修改（专注中允许提前选下一轮）
+  const breakRunning = localPhase === "break" && isRunning;
+  breakBtns.forEach(b => b.disabled = breakRunning);
+}
+
+/* =============================================
+   本地 Tick（每秒自减，减少服务器压力）
+============================================= */
+function startTick() {
+  if (tickInterval) return;
+  tickInterval = setInterval(() => {
+    if (localStatus !== "running") return;
+    localRemaining = Math.max(0, localRemaining - 1);
+    renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
+
+    if (localRemaining === 0 && !phaseDoneReported) {
+      phaseDoneReported = true;
+      reportPhaseDone(localPhase);
+    }
+  }, 1000);
+}
+
+function stopTick() {
+  clearInterval(tickInterval);
+  tickInterval = null;
+}
+
+/* =============================================
+   Phase Done → 通知后端 + 弹窗
+============================================= */
+async function reportPhaseDone(phase) {
+  // 1. 前端音效（预留，当前静默）
+  if (phase === "focus") playFocusEndSound();
+  else                   playBreakEndSound();
+
+  // 2. 显示弹窗
+  showModal(phase);
+
+  // 3. 通知后端切换阶段
+  try {
+    const res = await fetch(`${API}/phase_done`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phase })
+    });
+    const data = await res.json();
+    if (data.ok) applyServerState(data.state);
+  } catch(e) {
+    setConnStatus(false);
+  }
+
+  // 4. 桌面通知
+  if (phase === "focus") {
+    sendNotif("🧠 专注结束！", "45 分钟完成，去休息一下吧～", "");
+  } else {
+    sendNotif("🌿 休息结束！", "休息结束，开始新一轮专注！", "");
+  }
+
+  // 更新统计
+  fetchStats();
+}
+
+/* =============================================
+   弹窗
+============================================= */
+function showModal(finishedPhase) {
+  const overlay = document.getElementById("overlay");
+  const btn     = document.getElementById("modalBtn");
+  if (finishedPhase === "focus") {
+    document.getElementById("modalIcon").textContent  = "🌿";
+    document.getElementById("modalTitle").textContent = "专注结束！";
+    document.getElementById("modalSub").textContent   =
+      `太棒了！完成了 45 分钟专注。\n休息 ${selectedBreakSec/60} 分钟，然后继续。`;
+    btn.className = "modal-btn break-color";
+    btn.textContent = "开始休息";
+    btn.onclick = () => {
+      overlay.classList.remove("show");
+      // 休息阶段已由 reportPhaseDone → phase_done 接口自动启动，无需额外操作
+    };
+  } else {
+    document.getElementById("modalIcon").textContent  = "🧠";
+    document.getElementById("modalTitle").textContent = "休息结束！";
+    document.getElementById("modalSub").textContent   = "休息好了吗？下一轮专注马上开始！";
+    btn.className = "modal-btn focus-color";
+    btn.textContent = "开始专注";
+    btn.onclick = () => {
+      overlay.classList.remove("show");
+      // 专注阶段已由 reportPhaseDone → phase_done 接口自动启动
+    };
+  }
+  overlay.classList.add("show");
+}
+
+function closeModal() {
+  // 备用关闭（重置按钮等场景使用）
+  document.getElementById("overlay").classList.remove("show");
+}
+
+/* =============================================
+   应用服务器返回的状态到本地
+============================================= */
+function applyServerState(state) {
+  localPhase     = state.phase;
+  localStatus    = state.status;
+  localRemaining = state.remaining;
+  localFocusDur  = state.focus_duration;
+  // break_duration 保持用户选择的值
+
+  phaseDoneReported = false;  // 重置上报标志
+
+  renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
+
+  if (localStatus === "running") {
+    startTick();
+  } else {
+    stopTick();
+  }
+}
+
+/* =============================================
+   API 调用
+============================================= */
+async function doStart() {
+  try {
+    const res = await fetch(`${API}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ break_duration: selectedBreakSec })
+    });
+    const data = await res.json();
+    if (data.ok) applyServerState(data.state);
+    setConnStatus(true);
+  } catch(e) { setConnStatus(false); }
+}
+
+async function doPause() {
+  try {
+    const res = await fetch(`${API}/pause`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      stopTick();
+      applyServerState(data.state);
+    }
+    setConnStatus(true);
+  } catch(e) { setConnStatus(false); }
+}
+
+async function doReset() {
+  stopTick();
+  closeModal();
+  try {
+    const res = await fetch(`${API}/reset`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) applyServerState(data.state);
+    setConnStatus(true);
+  } catch(e) { setConnStatus(false); }
+}
+
+async function doSkip() {
+  closeModal();
+  try {
+    const res = await fetch(`${API}/skip_break`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      applyServerState(data.state);
+      fetchStats();
+    }
+    setConnStatus(true);
+  } catch(e) { setConnStatus(false); }
+}
+
+/* =============================================
+   今日统计
+============================================= */
+async function fetchStats() {
+  try {
+    const res = await fetch(`${API}/stats`);
+    const d   = await res.json();
+    document.getElementById("statFocus").textContent = d.focus_count;
+    document.getElementById("statBreak").textContent = d.break_count;
+    const totalMin = Math.round(d.total_focus_seconds / 60);
+    const displayTime = totalMin >= 60
+      ? (totalMin / 60).toFixed(1) + " h"
+      : totalMin + " 分钟";
+    document.getElementById("statTotal").textContent = displayTime;
+  } catch(e) { /* 静默 */ }
+}
+
+/* =============================================
+   轮询后端状态（兜底同步，每 5 秒）
+============================================= */
+let pollCount = 0;
+async function pollStatus() {
+  try {
+    const res  = await fetch(`${API}/status`);
+    const data = await res.json();
+    setConnStatus(true);
+
+    // 与本地状态对比，仅在不一致时更新（避免视觉抖动）
+    const remDiff = Math.abs(data.remaining - localRemaining);
+    if (data.phase !== localPhase || data.status !== localStatus || remDiff > 3) {
+      applyServerState(data);
+    }
+    // 统计每 5 次轮询更新一次
+    pollCount++;
+    if (pollCount % 1 === 0 && data.stats) {
+      const s = data.stats;
+      document.getElementById("statFocus").textContent = s.focus_count;
+      document.getElementById("statBreak").textContent = s.break_count;
+      const totalMin2 = Math.round(s.total_focus_seconds / 60);
+      const displayTime2 = totalMin2 >= 60
+        ? (totalMin2 / 60).toFixed(1) + " h"
+        : totalMin2 + " 分钟";
+      document.getElementById("statTotal").textContent = displayTime2;
+    }
+  } catch(e) {
+    setConnStatus(false);
+  }
+}
+
+/* =============================================
+   连接状态
+============================================= */
+function setConnStatus(ok) {
+  const dot   = document.getElementById("connDot");
+  const label = document.getElementById("connLabel");
+  if (ok) {
+    dot.className = "conn-dot ok";
+    label.textContent = "已连接";
+  } else {
+    dot.className = "conn-dot err";
+    label.textContent = "连接失败";
+  }
+}
+
+/* =============================================
+   初始化
+============================================= */
+async function init() {
+  await requestNotifPermission();
+  updateTitle();
+  await pollStatus();      // 首次同步
+  fetchStats();
+  setInterval(pollStatus, 2000);  // 2 秒轮询兜底（缩短感知延迟）
+}
+
+init();
+</script>
+</body>
+</html>
