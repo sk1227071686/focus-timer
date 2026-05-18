@@ -420,10 +420,65 @@ let localRemaining   = 0;     // 前端本地倒计时（减少轮询依赖）
 let localPhase       = "idle";
 let localStatus      = "idle";
 let localFocusDur    = 45 * 60;
-let tickInterval     = null;  // 本地每秒 tick
+let tickInterval     = null;  // 本地每秒 tick（Legacy fallback）
+let timerWorker      = null;  // Web Worker 计时（防后台节流）
 let phaseDoneReported = false; // 防止重复上报 phase_done
 let notifPermission  = "default";
 let tickEndTime      = null;  // 时间戳校正：本阶段结束的绝对时间（ms）
+let titleFlashInterval = null;  // 任务栏闪烁句柄
+let originalTitle    = document.title;
+
+/* =============================================
+   任务栏闪烁提醒
+============================================= */
+function startTitleFlash(flashText) {
+  stopTitleFlash();
+  let toggle = false;
+  titleFlashInterval = setInterval(() => {
+    document.title = toggle ? originalTitle : flashText;
+    toggle = !toggle;
+  }, 700);
+}
+
+function stopTitleFlash() {
+  if (titleFlashInterval) {
+    clearInterval(titleFlashInterval);
+    titleFlashInterval = null;
+  }
+  document.title = originalTitle;
+}
+
+/* =============================================
+   Web Worker 计时（防浏览器后台节流）
+============================================= */
+function initWorker() {
+  if (typeof Worker === 'undefined') return;
+  try {
+    const workerCode = `
+      let interval = null;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          if (!interval) interval = setInterval(() => self.postMessage('tick'), 1000);
+        } else if (e.data === 'stop') {
+          clearInterval(interval); interval = null;
+        }
+      };
+    `;
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    timerWorker = new Worker(URL.createObjectURL(blob));
+    timerWorker.onmessage = () => {
+      if (localStatus !== 'running') return;
+      localRemaining = Math.max(0, Math.round((tickEndTime - Date.now()) / 1000));
+      renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
+      if (localRemaining === 0 && !phaseDoneReported) {
+        phaseDoneReported = true;
+        reportPhaseDone(localPhase);
+      }
+    };
+  } catch(e) {
+    timerWorker = null;
+  }
+}
 
 /* =============================================
    预留音频接口（前端侧）
@@ -557,23 +612,27 @@ function updateButtons(phase, status) {
    本地 Tick（时间戳校正版，防止漂移和后台节流）
 ============================================= */
 function startTick() {
-  if (tickInterval) return;
-  // 用绝对结束时间而非递减计数，后台节流恢复后立即正确
   tickEndTime = Date.now() + localRemaining * 1000;
-  tickInterval = setInterval(() => {
-    if (localStatus !== "running") return;
-    // 补强措施1：用时间戳差值计算剩余，不依赖回调频率
-    localRemaining = Math.max(0, Math.round((tickEndTime - Date.now()) / 1000));
-    renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
-
-    if (localRemaining === 0 && !phaseDoneReported) {
-      phaseDoneReported = true;
-      reportPhaseDone(localPhase);
-    }
-  }, 1000);
+  if (timerWorker) {
+    // 优先使用 Web Worker（不受后台节流）
+    timerWorker.postMessage('start');
+  } else {
+    // 降级：普通 setInterval + 时间戳校正
+    if (tickInterval) return;
+    tickInterval = setInterval(() => {
+      if (localStatus !== "running") return;
+      localRemaining = Math.max(0, Math.round((tickEndTime - Date.now()) / 1000));
+      renderState(localRemaining, localPhase, localStatus, localFocusDur, selectedBreakSec);
+      if (localRemaining === 0 && !phaseDoneReported) {
+        phaseDoneReported = true;
+        reportPhaseDone(localPhase);
+      }
+    }, 1000);
+  }
 }
 
 function stopTick() {
+  if (timerWorker) timerWorker.postMessage('stop');
   clearInterval(tickInterval);
   tickInterval = null;
 }
@@ -582,6 +641,10 @@ function stopTick() {
    Phase Done → 通知后端 + 弹窗
 ============================================= */
 async function reportPhaseDone(phase) {
+  // 0. 任务栏闪烁提醒
+  const flashText = phase === "focus" ? "⏰ 专注结束！休息一下" : "⏰ 休息结束！开始专注";
+  startTitleFlash(flashText);
+
   // 1. 前端音效（预留，当前静默）
   if (phase === "focus") playFocusEndSound();
   else                   playBreakEndSound();
@@ -591,7 +654,7 @@ async function reportPhaseDone(phase) {
 
   // 3. 通知后端切换阶段
   try {
-    const res = await fetch(`${API}/phase_done`, {
+    const res = await apiFetch(`${API}/phase_done`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phase })
@@ -645,7 +708,8 @@ function showModal(finishedPhase) {
 }
 
 function closeModal() {
-  // 备用关闭（重置按钮等场景使用）
+  // 停止任务栏闪烁 + 关闭弹窗
+  stopTitleFlash();
   document.getElementById("overlay").classList.remove("show");
 }
 
@@ -678,7 +742,7 @@ function applyServerState(state) {
 ============================================= */
 async function doStart() {
   try {
-    const res = await fetch(`${API}/start`, {
+    const res = await apiFetch(`${API}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ break_duration: selectedBreakSec })
@@ -691,7 +755,7 @@ async function doStart() {
 
 async function doPause() {
   try {
-    const res = await fetch(`${API}/pause`, { method: "POST" });
+    const res = await apiFetch(`${API}/pause`, { method: "POST" });
     const data = await res.json();
     if (data.ok) {
       stopTick();
@@ -705,7 +769,7 @@ async function doReset() {
   stopTick();
   closeModal();
   try {
-    const res = await fetch(`${API}/reset`, { method: "POST" });
+    const res = await apiFetch(`${API}/reset`, { method: "POST" });
     const data = await res.json();
     if (data.ok) applyServerState(data.state);
     setConnStatus(true);
@@ -715,7 +779,7 @@ async function doReset() {
 async function doSkip() {
   closeModal();
   try {
-    const res = await fetch(`${API}/skip_break`, { method: "POST" });
+    const res = await apiFetch(`${API}/skip_break`, { method: "POST" });
     const data = await res.json();
     if (data.ok) {
       applyServerState(data.state);
@@ -730,7 +794,7 @@ async function doSkip() {
 ============================================= */
 async function fetchStats() {
   try {
-    const res = await fetch(`${API}/stats`);
+    const res = await apiFetch(`${API}/stats`);
     const d   = await res.json();
     document.getElementById("statFocus").textContent = d.focus_count;
     document.getElementById("statBreak").textContent = d.break_count;
@@ -748,7 +812,7 @@ async function fetchStats() {
 let pollCount = 0;
 async function pollStatus() {
   try {
-    const res  = await fetch(`${API}/status`);
+    const res  = await apiFetch(`${API}/status`);
     const data = await res.json();
     setConnStatus(true);
 
@@ -794,6 +858,7 @@ function setConnStatus(ok) {
 ============================================= */
 async function init() {
   await requestNotifPermission();
+  initWorker();
   updateTitle();
   await pollStatus();      // 首次同步
   fetchStats();
@@ -808,6 +873,146 @@ async function init() {
 }
 
 init();
+
+
+/* =============================================
+   GitHub Pages 静态模式检测
+   无 Flask 后端时，所有 API 调用降级到本地 localStorage
+============================================= */
+let STATIC_MODE = false;  // 自动检测：首次 API 失败后切换
+
+// localStorage key
+const LS_KEY = 'focus_timer_state';
+const LS_STATS_KEY = 'focus_timer_stats';
+
+function lsGetState() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY)) || null;
+  } catch(e) { return null; }
+}
+function lsSaveState(state) {
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+function lsGetStats() {
+  const today = new Date().toISOString().slice(0,10);
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_STATS_KEY));
+    if (s && s.date === today) return s;
+  } catch(e) {}
+  return { date: today, focus_count: 0, break_count: 0, total_focus_seconds: 0 };
+}
+function lsSaveStats(stats) {
+  localStorage.setItem(LS_STATS_KEY, JSON.stringify(stats));
+}
+
+// 静态模式下的 API 模拟
+function staticApiFetch(path, options) {
+  const body = options && options.body ? JSON.parse(options.body) : {};
+  let state = lsGetState() || {
+    phase: 'idle', status: 'idle',
+    focus_duration: 2700, break_duration: 300,
+    remaining: 2700, paused_remaining: 2700, start_time: null
+  };
+
+  const now = Date.now() / 1000;
+
+  if (path === '/api/status') {
+    if (state.status === 'running' && state.start_time) {
+      const elapsed = now - state.start_time;
+      state.remaining = Math.max(0, Math.round(state.paused_remaining - elapsed));
+    } else {
+      state.remaining = state.paused_remaining || 0;
+    }
+    const stats = lsGetStats();
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({...state, stats}) });
+  }
+
+  if (path === '/api/start') {
+    if (state.status !== 'running') {
+      if (state.phase === 'idle') {
+        state.phase = 'focus';
+        state.break_duration = body.break_duration || 300;
+        state.paused_remaining = state.focus_duration;
+      }
+      state.status = 'running';
+      state.start_time = now;
+    }
+    state.remaining = state.paused_remaining;
+    lsSaveState(state);
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, state }) });
+  }
+
+  if (path === '/api/pause') {
+    if (state.status === 'running') {
+      const elapsed = now - state.start_time;
+      state.paused_remaining = Math.max(0, state.paused_remaining - elapsed);
+      state.remaining = state.paused_remaining;
+      state.status = 'paused';
+      state.start_time = null;
+      lsSaveState(state);
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, state }) });
+  }
+
+  if (path === '/api/reset') {
+    state = { phase: 'idle', status: 'idle', focus_duration: 2700, break_duration: state.break_duration || 300, remaining: 2700, paused_remaining: 2700, start_time: null };
+    lsSaveState(state);
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, state }) });
+  }
+
+  if (path === '/api/phase_done') {
+    const finishedPhase = body.phase;
+    const stats = lsGetStats();
+    if (finishedPhase === 'focus') {
+      stats.focus_count++;
+      stats.total_focus_seconds += state.focus_duration;
+      state.phase = 'break';
+      state.paused_remaining = state.break_duration;
+    } else {
+      stats.break_count++;
+      state.phase = 'focus';
+      state.paused_remaining = state.focus_duration;
+    }
+    state.status = 'running';
+    state.start_time = now;
+    state.remaining = state.paused_remaining;
+    lsSaveState(state);
+    lsSaveStats(stats);
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, state }) });
+  }
+
+  if (path === '/api/skip_break') {
+    const stats = lsGetStats();
+    stats.break_count++;
+    state.phase = 'focus';
+    state.status = 'running';
+    state.paused_remaining = state.focus_duration;
+    state.start_time = now;
+    state.remaining = state.paused_remaining;
+    lsSaveState(state);
+    lsSaveStats(stats);
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, state }) });
+  }
+
+  if (path === '/api/stats') {
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(lsGetStats()) });
+  }
+
+  return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+}
+
+// 统一 fetch 包装：自动检测静态模式
+async function apiFetch(path, options) {
+  if (STATIC_MODE) return staticApiFetch(path, options);
+  try {
+    const res = await fetch(path, options);
+    return res;
+  } catch(e) {
+    STATIC_MODE = true;
+    console.log('[focus-timer] 后端不可用，切换到静态本地模式');
+    return staticApiFetch(path, options);
+  }
+}
 </script>
 </body>
 </html>
