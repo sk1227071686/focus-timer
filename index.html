@@ -24,7 +24,12 @@
       --btn-hover:  #e2e8f0;   /* 按钮悬停 */
       --btn-active: #cbd5e1;   /* 按钮激活 */
       --danger:     #b91c1c;   /* 危险/重置色 */
-      --radius:     8px;
+      --radius:     10px;
+      --fz-title: 16px;
+      --fz-large: 46px; /* timer digits */
+      --fz-normal: 14px;
+      --fz-small: 12px;
+      --card-shadow: 0 8px 24px rgba(15,23,36,0.04);
       --transition: 0.18s ease;
     }
 
@@ -66,13 +71,14 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 40px 48px;
+      padding: 36px 36px;
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 20px;
+      box-shadow: var(--card-shadow);
     }
 
     /* =============================================
@@ -118,11 +124,12 @@
       justify-content: center;
     }
     .timer-digits {
-      font-size: 46px;
-      font-weight: 300;
-      letter-spacing: 0.04em;
+      font-size: var(--fz-large);
+      font-weight: 500;
+      letter-spacing: 0.02em;
       color: var(--text-pri);
       font-variant-numeric: tabular-nums;
+      line-height: 1;
     }
 
     /* =============================================
@@ -247,10 +254,11 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px 28px;
+      padding: 16px 20px;
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       margin-top: 12px;
+      box-shadow: var(--card-shadow);
     }
     .stats-title {
       font-size: 11px;
