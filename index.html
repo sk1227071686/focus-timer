@@ -275,9 +275,19 @@
     .stat-item { display: flex; flex-direction: column; gap: 3px; }
     .stat-value {
       font-size: 24px;
-      font-weight: 300;
+      font-weight: 500;
       color: var(--text-pri);
       font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+    }
+    .stat-value .unit {
+      font-size: 12px;
+      color: var(--text-sec);
+      font-weight: 400;
+      margin-left: 4px;
     }
     .stat-label { font-size: 11px; color: var(--text-sec); }
 
@@ -417,7 +427,7 @@
       <span class="stat-label">休息次数</span>
     </div>
     <div class="stat-item">
-      <span class="stat-value" id="statTotal">0 h</span>
+      <span class="stat-value" id="statTotal"><span id="statTotalNum">0</span><span class="unit">h</span></span>
       <span class="stat-label">专注时长</span>
     </div>
   </div>
