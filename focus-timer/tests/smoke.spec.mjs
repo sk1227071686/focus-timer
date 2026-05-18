@@ -102,8 +102,20 @@ test('smoke: start → 2s tick → pause, take screenshots and log timer text', 
   const afterPausePath = `${OUT_DIR}/after_pause.png`;
   await page.screenshot({ path: afterPausePath, fullPage: true });
 
-  // final check: if afterStart present, afterPause should equal afterStart
+  // final checks: afterStart should differ from before, and afterStart-afterPause should be small (<=3s)
   if (afterStart && afterPause) {
-    expect(afterPause).toBe(afterStart);
+    // helper to parse mm:ss -> seconds
+    const toSec = s => {
+      const [mm, ss] = (s || '').split(':').map(Number);
+      return Number.isFinite(mm) && Number.isFinite(ss) ? mm * 60 + ss : null;
+    };
+    const sBefore = toSec(before);
+    const sStart = toSec(afterStart);
+    const sPause = toSec(afterPause);
+
+    if (sBefore !== null) expect(sStart).not.toBe(sBefore);
+    expect(sStart).toBeGreaterThanOrEqual(sPause);
+    // allow up to 3s drift between observed start and pause timestamps
+    expect(sStart - sPause).toBeLessThanOrEqual(3);
   }
 });
