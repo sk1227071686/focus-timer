@@ -322,6 +322,17 @@ function closeModal() {
    应用服务器返回的状态到本地
 ============================================= */
 function applyServerState(state) {
+  // Normalize numeric fields to integers to avoid floating-point display issues
+  // Some backends may return fractional seconds (e.g., remaining: 44.123456).
+  const normalizedRemaining = Math.max(0, Math.round(Number(state.remaining) || 0));
+  const normalizedPausedRemaining = Math.max(0, Math.round(Number(state.paused_remaining) || normalizedRemaining));
+  const normalizedFocusDur = Math.max(0, Math.round(Number(state.focus_duration) || localFocusDur));
+
+  state.remaining = normalizedRemaining;
+  state.paused_remaining = normalizedPausedRemaining;
+  state.focus_duration = normalizedFocusDur;
+  if (state.break_duration !== undefined) state.break_duration = Math.max(0, Math.round(Number(state.break_duration)));
+
   localPhase     = state.phase;
   localStatus    = state.status;
   localRemaining = state.remaining;
