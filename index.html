@@ -1006,6 +1006,12 @@ async function apiFetch(path, options) {
   if (STATIC_MODE) return staticApiFetch(path, options);
   try {
     const res = await fetch(path, options);
+    // Treat non-2xx responses as backend unavailable in static GitHub Pages
+    if (!res.ok) {
+      STATIC_MODE = true;
+      console.log('[focus-timer] 后端返回非 2xx，切换到静态本地模式', res.status);
+      return staticApiFetch(path, options);
+    }
     return res;
   } catch(e) {
     STATIC_MODE = true;
