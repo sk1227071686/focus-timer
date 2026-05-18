@@ -1,57 +1,13 @@
-# 学校模式专注节律提醒工具
+# 专注节律提醒工具（纯前端）
 
-> 45 分钟专注 + 可选 5 / 10 / 15 分钟休息，帮你建立健康的工作节律。
+本项目为纯前端的专注计时器，实现 45 分钟专注 + 可选 5/10/15 分钟休息。特点：
 
-## 功能特性
+- 无后端，单文件 index.html 即可运行
+- 使用 Web Worker 做主计时（降低后台节流影响）
+- 使用 localStorage 做今日统计和状态持久化，支持刷新恢复
+- 支持多标签/窗口同步（storage 事件）
 
-- 固定 45 分钟专注倒计时 + 环形进度条
-- 可选休息时长：5 / 10 / 15 分钟
-- 专注 → 休息 → 专注自动循环
-- 页面弹窗 + 浏览器桌面通知（Edge 兼容）
-- 支持开始 / 暂停 / 重置 / 跳过休息
-- 今日统计：专注次数、休息次数、专注时长
-- 数据本地 JSON 持久化，次日自动清零
-- 预留音效接口 `playFocusEndSound()` / `playBreakEndSound()`
-- 低饱和度深色护眼配色，长期使用不疲劳
+启动：
+- 直接在浏览器打开 focus-timer/index.html 即可
 
-## 快速开始
-
-```bash
-# 1. 安装依赖
-python3 -m pip install -r requirements.txt
-
-# 2. 启动服务
-python3 app.py
-
-# 3. 打开浏览器访问
-# http://localhost:8080
-```
-
-## 项目结构
-
-```
-focus-timer/
-├── app.py           # Flask 后端，REST API + 计时逻辑
-├── index.html       # 前端单文件（HTML + CSS + JS）
-├── requirements.txt # 依赖列表
-└── data.json        # 今日统计数据（运行后自动生成）
-```
-
-## API 接口
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET  | /api/status | 获取计时器状态 + 今日统计 |
-| POST | /api/start  | 开始 / 继续计时 |
-| POST | /api/pause  | 暂停 |
-| POST | /api/reset  | 重置到初始状态 |
-| POST | /api/skip_break | 跳过当前休息 |
-| POST | /api/phase_done | 前端通知阶段结束 |
-| GET  | /api/stats  | 今日统计数据 |
-| POST | /api/stats/reset | 重置统计（调试用）|
-
-## 依赖
-
-- Python 3.8+
-- Flask >= 2.3.0
-- Flask-CORS >= 4.0.0
+设计参考：Django 官网视觉风格（配色、间距、排版）

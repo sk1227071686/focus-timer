@@ -1,5 +1,5 @@
 """
-学校模式专注节律提醒工具 - 后端服务
+专注节律提醒工具 - 后端服务
 Flask 轻量后端，提供计时状态 API + 本地数据持久化（JSON）
 
 启动命令：
@@ -285,7 +285,7 @@ def api_stats_reset():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  学校模式专注节律提醒工具")
+    print("  专注节律提醒工具")
     print("  访问地址: http://localhost:8080")
     print("=" * 50)
     app.run(host="0.0.0.0", port=8080, debug=False)
