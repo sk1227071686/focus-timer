@@ -84,12 +84,21 @@ function playBreakEndSound() {
 ============================================= */
 async function requestNotifPermission() {
   if (!("Notification" in window)) return;
+  // Only request permission when page is visible to avoid intrusive popups
+  if (document.hidden) {
+    notifPermission = Notification.permission || 'default';
+    return;
+  }
   if (Notification.permission === "granted") {
     notifPermission = "granted"; return;
   }
   if (Notification.permission !== "denied") {
-    const p = await Notification.requestPermission();
-    notifPermission = p;
+    try {
+      const p = await Notification.requestPermission();
+      notifPermission = p;
+    } catch(e) {
+      notifPermission = Notification.permission || 'default';
+    }
   }
 }
 
@@ -256,9 +265,11 @@ async function reportPhaseDone(phase) {
     setConnStatus(false);
   }
 
-  // 4. 桌面通知
+  // 4. 桌面通知（尽量保证在最小化/后台也能提醒）
   if (phase === "focus") {
+    // 1) 系统通知（需要授权）
     sendNotif("🧠 专注结束！", "45 分钟完成，去休息一下吧～", "");
+    // 2) 退化方案：标题闪烁（已在上方 startTitleFlash）
   } else {
     sendNotif("🌿 休息结束！", "休息结束，开始新一轮专注！", "");
   }
@@ -282,7 +293,9 @@ function showModal(finishedPhase) {
     btn.textContent = "开始休息";
     btn.onclick = () => {
       overlay.classList.remove("show");
-      // 休息阶段已由 reportPhaseDone → phase_done 接口自动启动，无需额外操作
+      // 聚焦页面（在一些浏览器中，用户点击 modal 可聚焦）
+      try { window.focus(); } catch(e) {}
+      // 休息阶段已由 reportPhaseDone → phase_done 接口自动启动
     };
   } else {
     document.getElementById("modalIcon").textContent  = "🧠";
@@ -292,6 +305,7 @@ function showModal(finishedPhase) {
     btn.textContent = "开始专注";
     btn.onclick = () => {
       overlay.classList.remove("show");
+      try { window.focus(); } catch(e) {}
       // 专注阶段已由 reportPhaseDone → phase_done 接口自动启动
     };
   }
