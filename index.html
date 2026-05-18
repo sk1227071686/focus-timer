@@ -24,7 +24,12 @@
       --btn-hover:  #e2e8f0;   /* 按钮悬停 */
       --btn-active: #cbd5e1;   /* 按钮激活 */
       --danger:     #b91c1c;   /* 危险/重置色 */
-      --radius:     8px;
+      --radius:     10px;
+      --fz-title: 16px;
+      --fz-large: 46px; /* timer digits */
+      --fz-normal: 14px;
+      --fz-small: 12px;
+      --card-shadow: 0 8px 24px rgba(15,23,36,0.04);
       --transition: 0.18s ease;
     }
 
@@ -66,13 +71,14 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 40px 48px;
+      padding: 36px 36px;
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 20px;
+      box-shadow: var(--card-shadow);
     }
 
     /* =============================================
@@ -101,12 +107,13 @@
     }
     .ring-progress {
       fill: none;
-      stroke: var(--accent-idle);
-      stroke-width: 6;
+      stroke: var(--accent-f);
+      stroke-width: 8;
       stroke-linecap: round;
       stroke-dasharray: 502;     /* 2π × 79.9 ≈ circumference for r=80 */
       stroke-dashoffset: 0;
       transition: stroke-dashoffset 0.9s linear, stroke var(--transition);
+      filter: drop-shadow(0 4px 8px rgba(10,107,95,0.06));
     }
     .timer-text {
       position: absolute;
@@ -117,11 +124,12 @@
       justify-content: center;
     }
     .timer-digits {
-      font-size: 46px;
-      font-weight: 300;
-      letter-spacing: 0.04em;
+      font-size: var(--fz-large);
+      font-weight: 500;
+      letter-spacing: 0.02em;
       color: var(--text-pri);
       font-variant-numeric: tabular-nums;
+      line-height: 1;
     }
 
     /* =============================================
@@ -130,22 +138,22 @@
     .phase-badge {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
       font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      color: var(--text-sec);
-      padding: 4px 14px;
-      border-radius: 99px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-pri);
+      padding: 6px 14px;
+      border-radius: 999px;
       border: 1px solid var(--border);
-      background: var(--bg);
-      transition: color var(--transition), border-color var(--transition);
+      background: var(--surface);
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
     }
     .phase-dot {
-      width: 7px; height: 7px;
+      width: 9px; height: 9px;
       border-radius: 50%;
       background: var(--accent-idle);
-      transition: background var(--transition);
+      transition: background var(--transition), transform 0.12s ease;
     }
 
     /* =============================================
@@ -164,21 +172,23 @@
     }
     .break-btn {
       flex: 1;
-      padding: 9px 0;
+      height: 40px;
+      padding: 0 10px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       background: var(--btn-bg);
       color: var(--text-sec);
       cursor: pointer;
-      transition: background var(--transition), border-color var(--transition), color var(--transition);
+      transition: background var(--transition), border-color var(--transition), color var(--transition), transform 0.08s ease;
+      display: inline-flex; align-items: center; justify-content: center;
     }
-    .break-btn:hover:not(:disabled) { background: var(--btn-hover); color: var(--text-pri); }
+    .break-btn:hover:not(:disabled) { background: var(--btn-hover); color: var(--text-pri); transform: translateY(-2px); }
     .break-btn.active {
-      border-color: var(--accent-b);
-      color: var(--accent-b);
-      background: #1f2e28;
+      border-color: var(--accent-f);
+      color: #fff;
+      background: var(--accent-f);
     }
     .break-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -190,40 +200,52 @@
       gap: 10px;
       width: 100%;
     }
+    /* Button system: base + modifiers */
     .btn {
       flex: 1;
-      padding: 11px 0;
-      font-size: 13px;
+      height: 44px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14px;
       font-weight: 600;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       background: var(--btn-bg);
       color: var(--text-pri);
       cursor: pointer;
-      transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+      transition: background var(--transition), border-color var(--transition), transform 0.08s ease, opacity var(--transition);
+      user-select: none;
     }
-    .btn:hover:not(:disabled) { background: var(--btn-hover); }
-    .btn:active:not(:disabled) { background: var(--btn-active); }
-    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .btn.primary {
-      background: #1e2d42;
-      border-color: var(--accent-f);
-      color: var(--accent-f);
+
+    .btn:focus { outline: 2px solid rgba(10,107,95,0.12); outline-offset: 2px; }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:active:not(:disabled) { transform: translateY(0); }
+
+    .btn:disabled {
+      opacity: 0.45; cursor: not-allowed; background: var(--btn-bg); color: var(--text-dim); border-color: var(--border);
     }
-    .btn.primary:hover:not(:disabled) { background: #263853; }
-    .btn.danger {
-      background: #2e1f1f;
-      border-color: var(--danger);
-      color: var(--danger);
+
+    /* Primary action (start/continue) */
+    .btn--primary {
+      background: var(--accent-f); color: #fff; border-color: transparent;
     }
-    .btn.danger:hover:not(:disabled) { background: #3a2626; }
-    .btn.skip {
-      background: #1f2d24;
-      border-color: var(--accent-b);
-      color: var(--accent-b);
-    }
-    .btn.skip:hover:not(:disabled) { background: #263a2e; }
+    .btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-f) 85%, #000 15%); }
+
+    /* Secondary action (pause, less prominent) */
+    .btn--secondary { background: #fff; color: var(--text-pri); border-color: var(--border); }
+    .btn--secondary:hover:not(:disabled) { background: var(--btn-hover); }
+
+    /* Destructive action (reset) */
+    .btn--destructive { background: var(--danger); color: #fff; border-color: transparent; }
+    .btn--destructive:hover:not(:disabled) { filter: brightness(1.05); }
+
+    /* Ghost / less prominent (skip) */
+    .btn--ghost { background: var(--btn-bg); color: var(--text-dim); border-color: var(--border); }
+    .btn--ghost:hover:not(:disabled) { background: var(--btn-hover); color: var(--text-pri); }
 
     /* =============================================
        今日统计
@@ -232,10 +254,11 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px 28px;
+      padding: 16px 20px;
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       margin-top: 12px;
+      box-shadow: var(--card-shadow);
     }
     .stats-title {
       font-size: 11px;
@@ -252,9 +275,19 @@
     .stat-item { display: flex; flex-direction: column; gap: 3px; }
     .stat-value {
       font-size: 24px;
-      font-weight: 300;
+      font-weight: 500;
       color: var(--text-pri);
       font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+    }
+    .stat-value .unit {
+      font-size: 12px;
+      color: var(--text-sec);
+      font-weight: 400;
+      margin-left: 4px;
     }
     .stat-label { font-size: 11px; color: var(--text-sec); }
 
@@ -373,10 +406,10 @@
 
   <!-- 控制按钮 -->
   <div class="ctrl-btns">
-    <button class="btn primary" id="btnStart"     onclick="doStart()">开始</button>
-    <button class="btn"         id="btnPause"     onclick="doPause()"  disabled>暂停</button>
-    <button class="btn danger"  id="btnReset"     onclick="doReset()">重置</button>
-    <button class="btn skip"    id="btnSkip"      onclick="doSkip()"   disabled>跳过</button>
+    <button class="btn btn--primary" id="btnStart" onclick="doStart()">开始</button>
+    <button class="btn btn--secondary" id="btnPause" onclick="doPause()" disabled>暂停</button>
+    <button class="btn btn--destructive" id="btnReset" onclick="doReset()">重置</button>
+    <button class="btn btn--ghost" id="btnSkip" onclick="doSkip()" disabled>跳过</button>
   </div>
 
 </div>
@@ -394,7 +427,7 @@
       <span class="stat-label">休息次数</span>
     </div>
     <div class="stat-item">
-      <span class="stat-value" id="statTotal">0 h</span>
+      <span class="stat-value" id="statTotal"><span id="statTotalNum">0</span><span class="unit">h</span></span>
       <span class="stat-label">专注时长</span>
     </div>
   </div>

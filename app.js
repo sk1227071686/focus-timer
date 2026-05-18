@@ -408,9 +408,15 @@ async function fetchStats() {
     if (statBreakEl) statBreakEl.textContent = d.break_count;
     const totalMin = Math.round(d.total_focus_seconds / 60);
     const displayTime = totalMin >= 60
-      ? (totalMin / 60).toFixed(1) + " h"
-      : totalMin + " 分钟";
-    if (statTotalEl) statTotalEl.textContent = displayTime;
+      ? (totalMin / 60).toFixed(1)
+      : totalMin;
+    if (statTotalEl) {
+      const numEl = document.getElementById('statTotalNum');
+      if (numEl) numEl.textContent = displayTime;
+      // unit remains 'h' for hours display; if <60 show '分钟' as unit instead
+      const unitEl = statTotalEl.querySelector('.unit');
+      if (unitEl) unitEl.textContent = totalMin >= 60 ? 'h' : '分钟';
+    }
   } catch(e) { /* 静默 */ }
 }
 
