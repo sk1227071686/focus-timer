@@ -165,21 +165,23 @@
     }
     .break-btn {
       flex: 1;
-      padding: 9px 0;
+      height: 40px;
+      padding: 0 10px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       background: var(--btn-bg);
       color: var(--text-sec);
       cursor: pointer;
-      transition: background var(--transition), border-color var(--transition), color var(--transition);
+      transition: background var(--transition), border-color var(--transition), color var(--transition), transform 0.08s ease;
+      display: inline-flex; align-items: center; justify-content: center;
     }
-    .break-btn:hover:not(:disabled) { background: var(--btn-hover); color: var(--text-pri); }
+    .break-btn:hover:not(:disabled) { background: var(--btn-hover); color: var(--text-pri); transform: translateY(-2px); }
     .break-btn.active {
-      border-color: var(--accent-b);
-      color: var(--accent-b);
-      background: #1f2e28;
+      border-color: var(--accent-f);
+      color: #fff;
+      background: var(--accent-f);
     }
     .break-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -386,10 +388,10 @@
 
   <!-- 控制按钮 -->
   <div class="ctrl-btns">
-    <button class="btn primary" id="btnStart"     onclick="doStart()">开始</button>
-    <button class="btn"         id="btnPause"     onclick="doPause()"  disabled>暂停</button>
-    <button class="btn danger"  id="btnReset"     onclick="doReset()">重置</button>
-    <button class="btn skip"    id="btnSkip"      onclick="doSkip()"   disabled>跳过</button>
+    <button class="btn btn--primary" id="btnStart" onclick="doStart()">开始</button>
+    <button class="btn btn--secondary" id="btnPause" onclick="doPause()" disabled>暂停</button>
+    <button class="btn btn--destructive" id="btnReset" onclick="doReset()">重置</button>
+    <button class="btn btn--ghost" id="btnSkip" onclick="doSkip()" disabled>跳过</button>
   </div>
 
 </div>
