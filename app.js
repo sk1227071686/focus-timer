@@ -171,6 +171,10 @@ function setAccent(phase) {
 }
 
 function renderState(remaining, phase, status, focusDur, breakDur) {
+  // Ensure remaining is integer seconds to avoid displaying long floats
+  remaining = Math.max(0, Math.round(Number(remaining) || 0));
+  focusDur = Math.max(0, Math.round(Number(focusDur) || 0));
+  breakDur = Math.max(0, Math.round(Number(breakDur) || 0));
   const digits = document.getElementById("timerDigits");
   if (digits) digits.textContent = fmt(remaining);
   const total = phase === "focus" ? focusDur : breakDur;
